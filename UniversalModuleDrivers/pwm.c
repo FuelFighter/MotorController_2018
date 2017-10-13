@@ -60,6 +60,9 @@ void pwm_init(void){
 	OCR3B = 0;
 	OCR3C = 0;
 	OCR2A = 0;	
+	
+	OCR3A = (int)((0.5)*ICR3) ; //PWM_PE3 (non inverted)
+	OCR3B = OCR3A ; //PWM_PE4 (inverted)
 }
 
 void pwm_set_duty_cycle(pwmPin_t pin, uint16_t dutyCycle)

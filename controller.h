@@ -11,7 +11,7 @@
 
 #include <avr/io.h>
 #include "pid.h"
-//void controller(float f32_current_cmd, float f32_prev_current)
+void controller(float f32_current_cmd, float f32_prev_current);
 int32_t controller_current(Pid_t *PID, uint16_t amp, uint16_t amp_sp);
 int32_t controller_trq(Pid_t *PID, uint16_t amp, uint16_t amp_sp);
 void current_sample(uint32_t *current_cumulative);

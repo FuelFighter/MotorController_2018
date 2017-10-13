@@ -51,6 +51,6 @@ uint16_t adc_read(adc_channel_t channel);
 
 //Free running mode
 void adc_Free_running_init(void);
-void adc_Free_running_read(adc_channel_t channel_A, uint16_t *reg_ADC_A, adc_channel_t channel_B, uint16_t *reg_ADC_B);
-
+uint16_t adc_Free_running_read(adc_channel_t channel);
+void Set_ADC_Channel(adc_channel_t channel);
 #endif /* ADC_H_ */

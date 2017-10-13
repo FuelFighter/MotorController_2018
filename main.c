@@ -7,7 +7,7 @@
 
 #define F_CPU 8000000UL
 #define TRANSDUCER_SENSIBILITY 0.0416
-#define TRANSDUCER_OFFSET 2.5
+#define TRANSDUCER_OFFSET 2.26
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -47,8 +47,9 @@ static uint8_t send_can = 0;
 static uint8_t read_current = 0;
 static uint16_t u16_ADC2_reg = 0;
 static uint16_t u16_ADC3_reg = 0;
+static uint8_t u8_ADC_mux = 0;
 
-volatile float pot_voltage = 0;
+volatile float pot_val = 0;
 
 
 
@@ -129,11 +130,12 @@ void handle_motor_status_can_msg(uint8_t *send, ModuleValues_t *vals){
 		*send = 0;
 	}
 }
-
-void handle_current_sensor(float *f32_prev_current){ //----------------------------------------------------------------------------TODO test if ok with uint32, otherwise use float
+void handle_current_sensor(float *f32_prev_current, uint16_t u16_ADC_reg){ //----------------------------------------------------------------------------TODO test if ok with uint32, otherwise use float
 	
-	volatile float f_new_current = ((((float)u16_ADC2_reg*5/1024) - TRANSDUCER_OFFSET)/TRANSDUCER_SENSIBILITY)/3 ;// /3 because current passes 3x in transducer for more precision.
-	*f32_prev_current = (*f32_prev_current)*(1-LOWPASS_CONSTANT) + LOWPASS_CONSTANT*f_new_current ;// low pass filter ---------------------TODO test
+	volatile float f_new_current = ((((float)u16_ADC_reg*3.3/1024) - TRANSDUCER_OFFSET)/TRANSDUCER_SENSIBILITY)/3 ;// /3 because current passes 3x in transducer for more precision.
+	f_new_current = (f_new_current+0.11)*1.1 ;// correction of offset and ramp error (conversion + hardware) measured with ampmeter of the power supply : bad
+	//*f32_prev_current = (*f32_prev_current)*(1-LOWPASS_CONSTANT) + LOWPASS_CONSTANT*f_new_current ;// low pass filter ---------------------TODO test
+	*f32_prev_current = f_new_current;
 }
 
 int main(void)	
@@ -145,8 +147,11 @@ int main(void)
 	pwm_set_top_t3(0x319);
 	can_init(0,0);
 	timer_init_ts();
-	//adc_init();
+	//ADC
 	adc_Free_running_init();
+	ADMUX &= 0b11100000;
+	ADMUX |= CH_ADC2;
+	
 	rgbled_init();
 	txFrame.id = MOTOR_CAN_ID;
 	txFrame.length = 8;
@@ -159,33 +164,45 @@ int main(void)
 	rgbled_turn_on(LED_BLUE);
 	
     while (1){
-		adc_Free_running_read(CH_ADC2, &u16_ADC2_reg, CH_ADC3, &u16_ADC2_reg) ;
+		
 		handle_motor_status_can_msg(&send_can, &ComValues);
 		handle_can(&ComValues, &rxFrame);
-		handle_current_sensor(&f32_prev_current);
-		
+		handle_current_sensor(&f32_prev_current, u16_ADC2_reg);
+	
 		//simple mode with pwm controlled by potentiometer /
+	
+		pot_val = (float)u16_ADC3_reg/1024 ;
+	
+		controller(pot_val/2, f32_prev_current); // current from 0 to 500mA
 		
-		pot_voltage = (float)u16_ADC3_reg/1024 ;
-		
-		//bounding of duty cycle for well function of bootstrap capacitors
-		if (pot_voltage > 0.95)
-		{
-			pot_voltage = 0.95;
-		}
-		
-		if (pot_voltage < 0.05)
-		{
-			pot_voltage = 0.05;
-		}
-		
-		//set_pwm(pot_voltage);
-		OCR3A = (int)(pot_voltage*ICR3) ; //PWM_PE3 (non inverted)
-		OCR3B = OCR3A ; //PWM_PE4 (inverted)
 	}
 }
 
 ISR(TIMER1_COMPA_vect){
 	send_can = 1;
 	read_current = 1;
+}
+
+ISR(ADC_vect)
+{
+	if (u8_ADC_mux == 3)
+	{
+		u16_ADC3_reg = (ADCL+(ADCH<<8)); // reading conversion result
+		u8_ADC_mux = 0;
+	}
+	if (u8_ADC_mux == 2)
+	{
+		Set_ADC_Channel(CH_ADC3);
+		u8_ADC_mux++ ;
+	}
+	if (u8_ADC_mux == 1)
+	{
+		u16_ADC2_reg = (ADCL+(ADCH<<8)); // reading conversion result
+		u8_ADC_mux++ ;
+	}
+	if (u8_ADC_mux == 0)
+	{
+		Set_ADC_Channel(CH_ADC2);
+		u8_ADC_mux++ ;
+	}
 }

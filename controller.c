@@ -26,7 +26,7 @@
 
 const float Kp=3.0*R/(2.0*V_BATT);
 const float Ti= 2.0*L*V_BATT/(3.0*R*R);
-/*
+
 void controller(float f32_current_cmd, float f32_prev_current){
 	static float f32_CurrentDelta ;
 	static float f32_Integrator = 0.0 ;
@@ -37,7 +37,22 @@ void controller(float f32_current_cmd, float f32_prev_current){
 	f32_Integrator+=f32_CurrentDelta*200e-6 ;
 	f32_DutyCycleCmd=Kp*f32_CurrentDelta+f32_Integrator/Ti ;
 	f32_DutyCycleCmd=(f32_DutyCycleCmd+50) ;
-}*/
+	
+	//bounding of duty cycle for well function of bootstrap capacitors
+
+	if (f32_DutyCycleCmd > 95)
+	{
+		f32_DutyCycleCmd = 95;
+	}
+	
+	if (f32_DutyCycleCmd < 5)
+	{
+		f32_DutyCycleCmd = 5;
+	}
+	
+	OCR3A = (int)((f32_DutyCycleCmd/100)*ICR3) ; //PWM_PE3 (non inverted)
+	OCR3B = OCR3A ; //PWM_PE4 (inverted)
+}
 
 
 void current_saturation(uint16_t *rpm, uint16_t *pwm){

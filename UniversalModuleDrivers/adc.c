@@ -33,6 +33,9 @@ void adc_Free_running_init(void){ //WORKS - check precision
 	/* Auto trigger of ADC */
 	ADCSRA |= (1<<ADATE);
 	
+	/* Enable Interrupt of ADC */
+	ADCSRA |= (1<<ADIE);
+	
 	/* Free running mode */
 	ADCSRB &= ~((1<<ADTS2)|(1<<ADTS1)|(1<<ADTS0)); // (initially at 0 so not useful)
 	
@@ -55,26 +58,19 @@ uint16_t adc_read(adc_channel_t channel){
 	/* Wait for the conversion to complete */
 	while(ADCSRA & (1<<ADSC));
 	
-	return ADC;
+	return (ADCL+(ADCH<<8));
 }
 
-void adc_Free_running_read(adc_channel_t channel_A, uint16_t *reg_ADC_A, adc_channel_t channel_B, uint16_t *reg_ADC_B){ //to test - check precision & working
-	
+uint16_t adc_Free_running_read(adc_channel_t channel){ 
 	//Setting channel and type of reading, see enum in adc.h
 	ADMUX &= 0b11100000;
-	ADMUX |= (int8_t)channel_A;
-	
-	/* Wait for the conversion to complete */
-	while(ADCSRA & (1<<ADSC));
-	
-	*reg_ADC_A = ADC;
-	
-	//Setting channel and type of reading, see enum in adc.h
-	ADMUX &= 0b11100000;
-	ADMUX |= (int8_t)channel_B;
-	
-	/* Wait for the conversion to complete */
-	while(ADCSRA & (1<<ADSC));
-	
-	*reg_ADC_B = ADC;
+	ADMUX |= (int8_t)channel;
+
+	return (ADCL+(ADCH<<8));
+}
+
+void Set_ADC_Channel(adc_channel_t channel)
+{
+	channel &= 0b00000111;  // AND operation with 7
+	ADMUX = (ADMUX & 0xF8)|channel; // clears the bottom 3 bits before ORing
 }
