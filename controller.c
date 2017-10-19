@@ -19,22 +19,31 @@
 #define IMAX 20
 #define VCC 50
 #define V2PWM 0xFF/VCC
+//250W motor
+/*
+#define V_BATT 20.0
+#define R 0.365
+#define L 0.000423
+*/
 
-#define V_BATT 48.0
-#define R 0.9
-#define L (76.0e-6)*2.0
+//200W motor
+#define V_BATT 20.0
+#define R 0.608
+#define L 0.000161
 
-const float Kp=3.0*R/(2.0*V_BATT);
-const float Ti= 2.0*L*V_BATT/(3.0*R*R);
+const float Kp=L ;
+const float Ti=R ;
+const float TimeStep = 0.01 ; //10ms (see timer 0 in main.c)
+
+
+static float f32_Integrator = 0.0 ;
+static float f32_DutyCycleCmd = 50.0 ;
 
 void controller(float f32_current_cmd, float f32_prev_current){
-	static float f32_CurrentDelta ;
-	static float f32_Integrator = 0.0 ;
-	static float f32_DutyCycleCmd=0.0 ;
 	
-	f32_CurrentDelta=f32_current_cmd-f32_prev_current	;
+	float f32_CurrentDelta=f32_current_cmd-f32_prev_current	;
 
-	f32_Integrator+=f32_CurrentDelta*200e-6 ;
+	f32_Integrator+=f32_CurrentDelta*TimeStep ;
 	f32_DutyCycleCmd=Kp*f32_CurrentDelta+f32_Integrator/Ti ;
 	f32_DutyCycleCmd=(f32_DutyCycleCmd+50) ;
 	

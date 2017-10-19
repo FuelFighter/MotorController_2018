@@ -13,7 +13,7 @@
 
 typedef enum {
 	TIMER0 = 0,
-	TIMER1,
+	TIMER1 = 1,
 	TIMER2,
 	TIMER3,
 	TIMER4,

@@ -13,6 +13,7 @@
 #include <util/delay.h>
 #include <avr/interrupt.h>
 #include "pid.h"
+#include "UniversalModuleDrivers/timer.h"
 #include "controller.h"
 #include "UniversalModuleDrivers/rgbled.h"
 #include "UniversalModuleDrivers/usbdb.h"
@@ -48,21 +49,28 @@ static uint8_t read_current = 0;
 static uint16_t u16_ADC2_reg = 0;
 static uint16_t u16_ADC3_reg = 0;
 static uint8_t u8_ADC_mux = 0;
-
+volatile uint16_t time_elapsed1 = 0;
 volatile float pot_val = 0;
 
 
 
 
 
-void timer_init_ts(){
-	TCCR1B |= (1<<CS10)|(1<<CS11);
+void timer1_init_ts(){
+	TCCR1B |= (1<<CS10)|(1<<CS11); // timer 1 prescaler set CLK/64
 	TCCR1B |= (1<<WGM12); //CTC
-	TCNT1 = 0;
-	TIMSK1 |= (1<<OCIE1A);
-	OCR1A = 12500 - 1;
+	TCNT1 = 0; //reset timer value
+	TIMSK1 |= (1<<OCIE1A); //enable interrupt
+	OCR1A = 12500 - 1; //compare value
 }
 
+void timer0_init_ts(){ //TODO RTFM
+	TCCR0A |= (1<<CS02)|(1<<CS00); // timer 0 prescaler set CLK/1024
+	TCCR0A |= (1<<WGM01); //CTC
+	TCNT0 = 0; //reset timer value
+	TIMSK0 |= (1<<OCIE0A); //enable interrupt
+	OCR0A = 79; //compare value
+} // => reload time timer 0 = 10ms
 
 typedef struct{
 	uint8_t BMS_status;
@@ -146,7 +154,8 @@ int main(void)
 	pwm_init();
 	pwm_set_top_t3(0x319);
 	can_init(0,0);
-	timer_init_ts();
+	timer1_init_ts();
+	timer0_init_ts();
 	//ADC
 	adc_Free_running_init();
 	ADMUX &= 0b11100000;
@@ -167,13 +176,13 @@ int main(void)
 		
 		handle_motor_status_can_msg(&send_can, &ComValues);
 		handle_can(&ComValues, &rxFrame);
-		handle_current_sensor(&f32_prev_current, u16_ADC2_reg);
+		
 	
 		//simple mode with pwm controlled by potentiometer /
 	
-		pot_val = (float)u16_ADC3_reg/1024 ;
+		pot_val = (float)u16_ADC2_reg/1024 ;
 	
-		controller(pot_val/2, f32_prev_current); // current from 0 to 500mA
+		
 		
 	}
 }
@@ -181,7 +190,14 @@ int main(void)
 ISR(TIMER1_COMPA_vect){
 	send_can = 1;
 	read_current = 1;
+	handle_current_sensor(&f32_prev_current, u16_ADC3_reg);
+	
 }
+
+ISR(TIMER0_COMP_vect){ // every 10ms
+	controller(pot_val*5, f32_prev_current); // current from 0 to 5A
+}
+
 
 ISR(ADC_vect)
 {
