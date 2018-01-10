@@ -31,8 +31,8 @@
 #define R 0.608
 #define L 0.000161
 
-const float Kp=L ;
-const float Ti=R ;
+const float Kp=L*10 ;
+const float Ti=R*10 ;
 const float TimeStep = 0.01 ; //10ms (see timer 0 in main.c)
 
 

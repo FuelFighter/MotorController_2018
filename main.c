@@ -12,6 +12,7 @@
 #include <avr/io.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
+#include <stdlib.h>
 #include "pid.h"
 #include "UniversalModuleDrivers/timer.h"
 #include "controller.h"
@@ -20,6 +21,7 @@
 #include "UniversalModuleDrivers/pwm.h"
 #include "UniversalModuleDrivers/can.h"
 #include "UniversalModuleDrivers/adc.h"
+#include "UniversalModuleDrivers/uart.h"
 #include "motor_controller_selection.h"
 
 // Change Motor in motor_controller_selection.h
@@ -61,16 +63,16 @@ void timer1_init_ts(){
 	TCCR1B |= (1<<WGM12); //CTC
 	TCNT1 = 0; //reset timer value
 	TIMSK1 |= (1<<OCIE1A); //enable interrupt
-	OCR1A = 12500 - 1; //compare value
+	OCR1A = 125 - 1; //compare value //every 1ms
 }
 
-void timer0_init_ts(){ //TODO RTFM
-	TCCR0A |= (1<<CS02)|(1<<CS00); // timer 0 prescaler set CLK/1024
+void timer0_init_ts(){ 
+	TCCR0A |= (1<<CS10)|(1<<CS11); // timer 0 prescaler set CLK/1024
 	TCCR0A |= (1<<WGM01); //CTC
 	TCNT0 = 0; //reset timer value
 	TIMSK0 |= (1<<OCIE0A); //enable interrupt
 	OCR0A = 79; //compare value
-} // => reload time timer 0 = 10ms
+} // => reload time timer 0 = 100ms
 
 typedef struct{
 	uint8_t BMS_status;
@@ -151,8 +153,10 @@ int main(void)
 	cli();
 	pid_init(&Current, 0.1, 0.05, 0, 0);
 	usbdbg_init();
+	//uart_init();
+	//USART0_Init ((unsigned int)(9600));
 	pwm_init();
-	pwm_set_top_t3(0x319);
+	//pwm_set_top_t3(0x319);
 	can_init(0,0);
 	timer1_init_ts();
 	timer0_init_ts();
@@ -181,21 +185,28 @@ int main(void)
 		//simple mode with pwm controlled by potentiometer /
 	
 		pot_val = (float)u16_ADC2_reg/1024 ;
-	
+		char buff1 [8];
+		itoa(100*pot_val,buff1,10);
+		printf("%s,\n",buff1);
+		/*
+		char buff2 [8];
+		itoa(f32_prev_current,buff2,10);
+		printf("%s,\n",buff2);
+*/
 		
 		
 	}
 }
 
-ISR(TIMER1_COMPA_vect){
+ISR(TIMER1_COMPA_vect){// every 1ms
 	send_can = 1;
 	read_current = 1;
 	handle_current_sensor(&f32_prev_current, u16_ADC3_reg);
 	
 }
 
-ISR(TIMER0_COMP_vect){ // every 10ms
-	controller(pot_val*5, f32_prev_current); // current from 0 to 5A
+ISR(TIMER0_COMP_vect){ // every 100ms
+	controller(pot_val*20-10, f32_prev_current); // 
 }
 
 

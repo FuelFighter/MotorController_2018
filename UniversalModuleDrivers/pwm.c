@@ -26,13 +26,6 @@ void pwm_init(void){
 	
 	//Timer 2 fast pwm, mode 3, Top at 0xFF
 	TCCR2A |= (1<<WGM21)|(1<<WGM20);
-	
-/* old version backup
-	// Set low on compare match for 3A&B
-	TCCR3A |= (1<<COM3A1)|(1<<COM3B1);
-	TCCR3A &= ~((1<<COM3A0)|(1<<COM3B0));
-	*/
-//new version //TO BE TESTED
 
 	// Non inverted PWM for A
 	TCCR3A |= (1<<COM3A1);
@@ -41,8 +34,6 @@ void pwm_init(void){
 	// Inverted PWM for B
 	TCCR3A |= (1<<COM3B1);
 	TCCR3A |= (1<<COM3B0);
-	
-// end of new version
 	
 	TCCR2A |= (1<<COM2A1);
 	TCCR2A &=  ~((1<<COM2A0));
@@ -53,7 +44,7 @@ void pwm_init(void){
 	TCCR3B &= ~((1<<CS32)|(1<<CS31));
 	
 	//Set top value for timer 3
-	ICR3 = 0xFF;
+	ICR3 = 0x199; //20kHz
 	
 	//Set off 
 	OCR3A = 0;
@@ -65,6 +56,7 @@ void pwm_init(void){
 	OCR3B = OCR3A ; //PWM_PE4 (inverted)
 }
 
+/*
 void pwm_set_duty_cycle(pwmPin_t pin, uint16_t dutyCycle)
 {
 	switch (pin)
@@ -84,6 +76,8 @@ void pwm_set_duty_cycle(pwmPin_t pin, uint16_t dutyCycle)
 			break;
 	}
 }
+
+
 
 void pwm_set_top_t3(uint16_t top)
 {
@@ -171,3 +165,4 @@ void pwm_set_prescale(pwmPrescale_t scale, pwmTimer_t timer)
 	}
 }
 
+*/
