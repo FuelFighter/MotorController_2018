@@ -176,6 +176,12 @@
     <Compile Include="pid.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="sensors.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="sensors.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="UniversalModuleDrivers\adc.c">
       <SubType>compile</SubType>
     </Compile>
