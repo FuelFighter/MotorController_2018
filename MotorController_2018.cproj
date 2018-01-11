@@ -155,6 +155,21 @@
     <Compile Include="controller.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="speed.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="speed.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usart.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usart.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usart_config.h">
+      <SubType>compile</SubType>
+    </Compile>
     <None Include="efficiency.c">
       <SubType>compile</SubType>
     </None>

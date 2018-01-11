@@ -6,7 +6,7 @@
  * Corresponding Hardware : Motor Drive V2.0
  */ 
 
-
+#include <avr/io.h>
 #ifndef SENSORS_H_
 #define SENSORS_H_
 

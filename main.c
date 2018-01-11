@@ -6,18 +6,18 @@
  * Corresponding Hardware : Motor Drive V2.0
  */ 
 
-#define F_CPU 8000000UL
-#define TRANSDUCER_SENSIBILITY 0.0416
-#define TRANSDUCER_OFFSET 2.26
+#define WATCHDOG_RELOAD_VALUE 5
 
 #include <avr/io.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
 #include <stdlib.h>
+#include "speed.h"
 #include "sensors.h"
 #include "pid.h"
-#include "UniversalModuleDrivers/timer.h"
 #include "controller.h"
+#include "UniversalModuleDrivers/spi.h"
+#include "UniversalModuleDrivers/timer.h"
 #include "UniversalModuleDrivers/rgbled.h"
 #include "UniversalModuleDrivers/usbdb.h"
 #include "UniversalModuleDrivers/pwm.h"
@@ -32,13 +32,17 @@ CanMessage_t txFrame;
 Pid_t Speed;
 Pid_t Current;
 
+//security
+static uint8_t u8_watchdog = WATCHDOG_RELOAD_VALUE ;
 
-// Control values
+// Control values to be moved in ComValues struct
 static float f32_motor_current = 0;
 static float f32_batt_current = 0;
 static float f32_batt_volt = 0;
 static uint8_t u8_motor_temp = 0;
+static uint8_t u8_car_speed = 0;
 
+//ADC buffers
 static uint16_t u16_ADC1_reg = 0;
 static uint16_t u16_ADC2_reg = 0;
 static uint16_t u16_ADC3_reg = 0;
@@ -51,7 +55,8 @@ static uint8_t u8_SPI_count = 0;
 static uint8_t u8_ADC_mux = 0; 
 static uint8_t u8_rxBuffer = 0;
 
-
+//for speed
+static uint16_t u16_speed_count = 0;
 
 void timer1_init_ts(){
 	TCCR1B |= (1<<CS10)|(1<<CS11); // timer 1 prescaler set CLK/64
@@ -70,7 +75,7 @@ void timer0_init_ts(){
 } // => reload time timer 0 = 100ms
 
 typedef struct{
-	uint8_t throttle_cmd;
+	uint8_t u8_throttle_cmd;
 	uint8_t restart_overload;
 	uint16_t rpm;	
 	uint8_t braking;
@@ -81,7 +86,7 @@ typedef struct{
 
 
 ModuleValues_t ComValues = {
-	.throttle_cmd = 0,
+	.u8_throttle_cmd = 0, //in amps
 	.restart_overload = 0,
 	.rpm = 0,
 	.braking = 0,
@@ -95,13 +100,17 @@ void handle_can(ModuleValues_t *vals, CanMessage_t *rx){
 		switch (rx->id){
 			case BRAKE_CAN_ID:
 				vals->braking = rx->data.u8[0];
+				u8_watchdog = WATCHDOG_RELOAD_VALUE ;
 				break;
 			case FORWARD_CAN_ID:
-				vals->throttle_cmd = rx->data.u8[3];
+				vals->u8_throttle_cmd = rx->data.u8[3];
+				u8_watchdog = WATCHDOG_RELOAD_VALUE ;
 				break;
+				/*
 			case ENCODER_CAN_ID:
 				vals->rpm = rx->data.u16[ENCODER_CHANNEL];
 				break;
+				*/
 		}
 	}
 }
@@ -109,9 +118,9 @@ void handle_can(ModuleValues_t *vals, CanMessage_t *rx){
 void handle_motor_status_can_msg(uint8_t *send, ModuleValues_t *vals){
 	if(*send){
 		txFrame.data.u8[0] = vals->motor_status;
-		txFrame.data.u8[1] = vals->throttle_cmd;
+		txFrame.data.u8[1] = vals->u8_throttle_cmd;
 		txFrame.data.u16[1] = vals->mamp;
-		//txFrame.data.u16[2] = OCR3B ;   
+		txFrame.data.u16[2] = OCR3B ;   //not useful
 		txFrame.data.u16[3] = vals->rpm;
 		
 		can_send_message(&txFrame);
@@ -123,14 +132,11 @@ int main(void)
 {
 	cli();
 	pid_init(&Current, 0.1, 0.05, 0, 0);
-	usbdbg_init();
-	//uart_init();
-	//USART0_Init ((unsigned int)(9600));
 	pwm_init();
-	//pwm_set_top_t3(0x319);
 	can_init(0,0);
 	timer1_init_ts();
 	timer0_init_ts();
+	speed_init();
 	
 	spi_init(DIV_2); // init of SPI for external ADC device
 
@@ -138,6 +144,7 @@ int main(void)
 	rgbled_init();
 	txFrame.id = MOTOR_CAN_ID;
 	txFrame.length = 8;
+	
 	sei();
 	
 	rgbled_turn_on(LED_BLUE);
@@ -145,16 +152,29 @@ int main(void)
     while (1){
 		
 		handle_motor_status_can_msg(&send_can, &ComValues);
-		handle_can(&ComValues, &rxFrame);		
-		
+		handle_can(&ComValues, &rxFrame);
 	}
 }
 
+
 ISR(TIMER0_COMP_vect){ // every 100ms
+	if (u8_watchdog == 0)
+	{
+		ComValues.u8_throttle_cmd = 0 ;
+		/*TODO
+		* send CAN to demand motor disengage
+		* drivers disable
+		*/
+	} else {
+		u8_watchdog -- ;	
+	}
 	send_can = 1;
-	controller(pot_val*20-10, f32_motor_current); // 
+	controller(ComValues.u8_throttle_cmd, f32_motor_current);
+	handle_speed_sensor(&u8_car_speed, u16_speed_count, 100);
 }
 
+
+/////////////////////////////////////COMMUNICATION WITH EXTERNAL ADC////////////////////////////////
 /*External ADC HW setup (on Motor Drive V2.0):
 *	CH1 : Motor current
 *	CH2 : Battery current
@@ -162,15 +182,13 @@ ISR(TIMER0_COMP_vect){ // every 100ms
 *	CH5 : Motor temperature
 */
 
-// to be done regularily (eg ISR of a Timer)
-
 ISR(TIMER1_COMPA_vect){// every 1ms
 
 	if (u8_SPI_count == 1)
 	{
 		//motor current
 		u8_ADC_mux = 1; 
-		spi_trancieve(uint8_t* &u8_ADC_mux, uint8_t* &u8_rxBuffer, 16, 0);
+		spi_trancieve(&u8_ADC_mux, &u8_rxBuffer, 16, 0);
 		u16_ADC1_reg = u8_rxBuffer;
 		u8_SPI_count ++ ;
 
@@ -180,7 +198,7 @@ ISR(TIMER1_COMPA_vect){// every 1ms
 	{
 		//batt current
 		u8_ADC_mux = 2;
-		spi_trancieve(uint8_t* &u8_ADC_mux, uint8_t* &u8_rxBuffer, 16, 0);
+		spi_trancieve(&u8_ADC_mux, &u8_rxBuffer, 16, 0);
 		u16_ADC2_reg = u8_rxBuffer;
 		u8_SPI_count ++ ;
 
@@ -190,7 +208,7 @@ ISR(TIMER1_COMPA_vect){// every 1ms
 	{
 		//batt volt
 		u8_ADC_mux = 3;
-		spi_trancieve(uint8_t* &u8_ADC_mux, uint8_t* &u8_rxBuffer, 16, 0);
+		spi_trancieve(&u8_ADC_mux, &u8_rxBuffer, 16, 0);
 		u16_ADC3_reg = u8_rxBuffer;
 		u8_SPI_count ++ ;
 
@@ -200,14 +218,20 @@ ISR(TIMER1_COMPA_vect){// every 1ms
 	{
 		//motor temp
 		u8_ADC_mux = 5;
-		spi_trancieve(uint8_t* &u8_ADC_mux, uint8_t* &u8_rxBuffer, 16, 0);
+		spi_trancieve(&u8_ADC_mux, &u8_rxBuffer, 16, 0);
 		u16_ADC5_reg = u8_rxBuffer;
 		u8_SPI_count = 1 ;
 
 	}
 	
+	////////////////////INTERPRETATION OF RECEIVED ADC VALUES//////////////
 	handle_current_sensor(&f32_motor_current, u16_ADC1_reg);
 	handle_current_sensor(&f32_batt_current, u16_ADC2_reg);
-	f32_batt_volt = (float)u16_ADC3_reg*5/4096 ;
+	f32_batt_volt = (float)u16_ADC3_reg/82; //*5/4096 (12bit ADC with Vref = 5V) *0.1 (divider bridge 50V -> 5V)
 	handle_temp_sensor(&u8_motor_temp, u16_ADC5_reg);
+}
+
+ISR(INT5_vect)
+{
+	u16_speed_count ++ ;
 }

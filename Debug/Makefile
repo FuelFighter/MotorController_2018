@@ -40,8 +40,11 @@ SUBDIRS :=  \
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS +=  \
 ../controller.c \
+../speed.c \
+../usart.c \
 ../main.c \
 ../pid.c \
+../sensors.c \
 ../UniversalModuleDrivers/adc.c \
 ../UniversalModuleDrivers/can.c \
 ../UniversalModuleDrivers/pwm.c \
@@ -60,8 +63,11 @@ ASM_SRCS +=
 
 OBJS +=  \
 controller.o \
+speed.o \
+usart.o \
 main.o \
 pid.o \
+sensors.o \
 UniversalModuleDrivers/adc.o \
 UniversalModuleDrivers/can.o \
 pwm.o \
@@ -73,8 +79,11 @@ usbdb.o
 
 OBJS_AS_ARGS +=  \
 controller.o \
+speed.o \
+usart.o \
 main.o \
 pid.o \
+sensors.o \
 UniversalModuleDrivers/adc.o \
 UniversalModuleDrivers/can.o \
 pwm.o \
@@ -86,8 +95,11 @@ usbdb.o
 
 C_DEPS +=  \
 controller.d \
+speed.d \
+usart.d \
 main.d \
 pid.d \
+sensors.d \
 UniversalModuleDrivers/adc.d \
 UniversalModuleDrivers/can.d \
 pwm.d \
@@ -99,8 +111,11 @@ usbdb.d
 
 C_DEPS_AS_ARGS +=  \
 controller.d \
+speed.d \
+usart.d \
 main.d \
 pid.d \
+sensors.d \
 UniversalModuleDrivers/adc.d \
 UniversalModuleDrivers/can.d \
 pwm.d \
@@ -124,6 +139,12 @@ LINKER_SCRIPT_DEP+=
 
 
 # AVR32/GNU C Compiler
+
+
+
+
+
+
 
 
 
