@@ -201,7 +201,7 @@ int main(void)
 			}
 		}
 		
-		uart_putint(u8_watchdog);
+		uart_putint((uint16_t)(ComValues.f32_batt_volt*100));
 		uart_puts("\r\n");	
 	}
 }
@@ -301,7 +301,7 @@ ISR(TIMER1_COMPA_vect){// every 1ms nope
 	////////////////////INTERPRETATION OF RECEIVED ADC VALUES//////////////
 	handle_current_sensor(&ComValues.f32_motor_current, u16_ADC0_reg);
 	handle_current_sensor(&ComValues.f32_batt_current, u16_ADC1_reg);
-	ComValues.f32_batt_volt = (float)u16_ADC2_reg/82; // *5/4096 (12bit ADC with Vref = 5V) *0.1 (divider bridge 50V -> 5V)
+	ComValues.f32_batt_volt = (float)u16_ADC2_reg/50.9 -1; // *5/4096 (12bit ADC with Vref = 5V) *0.1 (divider bridge 50V -> 5V) *1.61 - 1 (trimming)
 	handle_temp_sensor(&ComValues.u8_motor_temp, u16_ADC4_reg);
 }
 

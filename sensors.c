@@ -16,7 +16,7 @@
 void handle_current_sensor(float *f32_current, uint16_t u16_ADC_reg)
 {
 	volatile float f_new_current = ((((float)u16_ADC_reg*5/4096) - TRANSDUCER_OFFSET)/TRANSDUCER_SENSIBILITY)/3 ;// /3 because current passes 3x in transducer for more precision.
-	f_new_current = (f_new_current+0.11)*1.1 ;// correction of offset and ramp error (conversion + hardware) measured with ampmeter of the power supply : bad
+	f_new_current = (f_new_current-1.84);// correction of offset and ramp error (conversion + hardware) measured with ampmeter of the power supply : bad
 	//*f32_prev_current = (*f32_prev_current)*(1-LOWPASS_CONSTANT) + LOWPASS_CONSTANT*f_new_current ;// low pass filter ---------------------TODO test
 	*f32_current = f_new_current;
 }
