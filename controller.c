@@ -39,24 +39,31 @@ const float TimeStep = 0.01 ; //10ms (see timer 0 in main.c)
 static float f32_Integrator = 0.0 ;
 static float f32_DutyCycleCmd = 50.0 ;
 
+static bool b_saturation = false;
+
 void controller(float f32_current_cmd, float f32_prev_current){
 	
 	float f32_CurrentDelta=f32_current_cmd-f32_prev_current	;
+	
+	if (!b_saturation) // prevents over integration of an error that cannot be dealt with (because the duty cycle reaches a limit)
+	{
+		f32_Integrator+=f32_CurrentDelta*TimeStep ;
+	}
 
-	f32_Integrator+=f32_CurrentDelta*TimeStep ;
 	f32_DutyCycleCmd=Kp*f32_CurrentDelta+f32_Integrator/Ti ;
 	f32_DutyCycleCmd=(f32_DutyCycleCmd+50) ;
 	
 	//bounding of duty cycle for well function of bootstrap capacitors
-
 	if (f32_DutyCycleCmd > 95)
 	{
 		f32_DutyCycleCmd = 95;
+		b_saturation = true ;
 	}
 	
 	if (f32_DutyCycleCmd < 5)
 	{
 		f32_DutyCycleCmd = 5;
+		b_saturation = true ;
 	}
 	
 	OCR3A = (int)((f32_DutyCycleCmd/100)*ICR3) ; //PWM_PE3 (non inverted)

@@ -26,7 +26,8 @@ main.d main.o: .././main.c \
  .././UniversalModuleDrivers/timer.h .././UniversalModuleDrivers/rgbled.h \
  .././UniversalModuleDrivers/pwm.h .././UniversalModuleDrivers/can.h \
  .././UniversalModuleDrivers/adc.h .././UniversalModuleDrivers/uart.h \
- .././motor_controller_selection.h
+ .././motor_controller_selection.h .././AVR-UART-lib-master/usart.h \
+ .././AVR-UART-lib-master/usart_config.h
 
 c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\avr\io.h:
 
@@ -95,3 +96,7 @@ c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\lib\
 .././UniversalModuleDrivers/uart.h:
 
 .././motor_controller_selection.h:
+
+.././AVR-UART-lib-master/usart.h:
+
+.././AVR-UART-lib-master/usart_config.h:

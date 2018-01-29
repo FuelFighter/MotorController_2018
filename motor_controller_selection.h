@@ -40,9 +40,17 @@
 
 typedef enum {
 	IDLE = 0,
-	RUNNING = 1,
-	OVERLOAD = 2
+	FW_ACCEL = 1,
+	FW_BRAKE = 2,
+	BW_ACCEL = 3,
+	BW_BRAKE = 4
 } MotorControllerState_t;
+
+typedef enum 
+{
+	FORWARD = 0,
+	BACKWARD = 1
+} CarDirection_t;
 
 
 

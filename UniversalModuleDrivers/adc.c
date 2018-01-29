@@ -74,3 +74,60 @@ void Set_ADC_Channel(adc_channel_t channel)
 	channel &= 0b00000111;  // AND operation with 7
 	ADMUX = (ADMUX & 0xF8)|channel; // clears the bottom 3 bits before ORing
 }
+
+void Set_ADC_Channel_ext(uint8_t u8_CHn, uint8_t * u8_ADC_tx)
+{
+	switch(u8_CHn)
+	{
+		case 0 :
+			u8_ADC_tx[0] = 0b00000110 ;
+			u8_ADC_tx[1] = 0b00 ;
+		break;
+		
+		case 1 :
+			u8_ADC_tx[0] = 0b00000110 ;
+			u8_ADC_tx[1] = 0b01 << 6 ;
+		break;
+		
+		case 2 :
+			u8_ADC_tx[0] = 0b00000110 ;
+			u8_ADC_tx[1] = 0b10 << 6 ;
+		break;
+		
+		case 3 :
+		u8_ADC_tx[0] = 0b00000110 ;
+		u8_ADC_tx[1] = 0b11 << 6 ;
+		break;
+		
+		case 4 :
+		u8_ADC_tx[0] = 0b00000111 ;
+		u8_ADC_tx[1] = 0b00 << 6 ;
+		break;
+		
+		case 5 :
+		u8_ADC_tx[0] = 0b00000111 ;
+		u8_ADC_tx[1] = 0b01 << 6 ;
+		break;
+		
+		case 6 :
+		u8_ADC_tx[0] = 0b00000111 ;
+		u8_ADC_tx[1] = 0b10 << 6 ;
+		break;
+		
+		case 7 :
+		u8_ADC_tx[0] = 0b00000111 ;
+		u8_ADC_tx[1] = 0b11 << 6 ;
+		break;
+	}
+}
+/*
+MCP3208 doc :
+	ADC0 = 0b0000011000,
+	ADC1 = 0b0000011001,
+	ADC2 = 0b0000011010,
+	ADC3 = 0b0000011011,
+	ADC4 = 0b0000011100,
+	ADC5 = 0b0000011101,
+	ADC6 = 0b0000011110,
+	ADC7 = 0b0000011111,
+*/ 

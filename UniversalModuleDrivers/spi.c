@@ -20,10 +20,17 @@ void spi_init(spi_prescale_t clock_prescale) {
 	uint8_t SPI2X_val = (uint8_t)((clock_prescale >> 2) & 0b001);
 	uint8_t SPR1_val = (uint8_t)((clock_prescale >> 1) & 0b001);
 	uint8_t SPR0_val = (uint8_t)((clock_prescale >> 0) & 0b001);
-
+/*
 	// Enable SPI, Master, selected prescaling, mode 3 (CPOL = CPHA = 1)
 	SPCR = (1 << SPE) | (1 << MSTR) | (SPR1_val << SPR1) | (SPR0_val << SPR0) | (1 << CPOL) | (1 << CPHA);
 	SPSR = (SPI2X_val << SPI2X);
+*/
+
+	// Enable SPI, Master, selected prescaling, mode 0 (CPOL = CPHA = 0)
+	SPCR = (1 << SPE) | (1 << MSTR) | (SPR1_val << SPR1) | (SPR0_val << SPR0);
+	SPCR &= ~((1 << CPOL) | (1 << CPHA));
+	SPSR = (SPI2X_val << SPI2X);
+
 }
 
 void spi_trancieve(uint8_t* tx_buffer, uint8_t* rx_buffer, size_t length, bool last_in_transmission) {

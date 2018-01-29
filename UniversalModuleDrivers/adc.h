@@ -45,6 +45,7 @@ typedef enum {
 	CH_CONST_0V = 0b11111
 } adc_channel_t;
 
+
 // single mode
 void adc_init(void);
 uint16_t adc_read(adc_channel_t channel);
@@ -53,4 +54,7 @@ uint16_t adc_read(adc_channel_t channel);
 void adc_Free_running_init(void);
 uint16_t adc_Free_running_read(adc_channel_t channel);
 void Set_ADC_Channel(adc_channel_t channel);
+
+void Set_ADC_Channel_ext(uint8_t u8_CHn, uint8_t * u8_ADC_tx) ;//builds the tx buffer for the ADC. u8_ADC_tx is a [2] array
+
 #endif /* ADC_H_ */

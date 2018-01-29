@@ -28,8 +28,9 @@ void speed_init()
 	EIMSK |= (1<<INT5) ; // interrupt enable
 }
 
-void handle_speed_sensor(uint8_t *u8_speed,uint16_t u16_counter, uint8_t u8_period) // period in ms
+void handle_speed_sensor(uint8_t *u8_speed,uint16_t *u16_counter, uint8_t u8_period) // period in ms
 {
-	volatile uint8_t u8_new_speed = (uint8_t)((float)u16_counter*COUNT_TO_DISTANCE/u8_period);
+	volatile uint8_t u8_new_speed = (uint8_t)((float)(*u16_counter)*COUNT_TO_DISTANCE/u8_period);
 	*u8_speed = (*u8_speed)*(1-LOWPASS_CONSTANT_S) + LOWPASS_CONSTANT_S*u8_new_speed ;// low pass filter
+	*u16_counter = 0 ;
 }
