@@ -5,8 +5,8 @@
  * Author : Tanguy Simon for DNV GL Fuel fighter
  * Corresponding Hardware : Motor Drive V2.0
  */ 
-
-#define WATCHDOG_RELOAD_VALUE 60000
+//CLKI/O 8MHz
+#define WATCHDOG_RELOAD_VALUE 20000
 #define USE_USART0
 
 #include <avr/io.h>
@@ -56,20 +56,19 @@ static uint8_t u8_rxBuffer[3];
 static uint16_t u16_speed_count = 0;
 
 void timer1_init_ts(){
-	TCCR1B |= (1<<CS10)|(1<<CS12); // timer 1 prescaler set CLK/1024
-	//TCCR1B |= (1<<CS10)|(1<<CS11); // timer 1 prescaler set CLK/64
+	TCCR1B |= (1<<CS10)|(1<<CS11); // timer 1 prescaler set CLK/64
 	TCCR1B |= (1<<WGM12); //CTC
 	TCNT1 = 0; //reset timer value
 	TIMSK1 |= (1<<OCIE1A); //enable interrupt
-	OCR1A = 125 - 1; //compare value //every 1ms nope
+	OCR1A = 125; //compare value //every 1ms
 }
 
 void timer0_init_ts(){ 
-	TCCR0A |= (1<<CS10)|(1<<CS11); // timer 0 prescaler set CLK/1024
+	TCCR0A |= (1<<CS02)|(1<<CS00); // timer 0 prescaler set CLK/1024
 	TCCR0A |= (1<<WGM01); //CTC
 	TCNT0 = 0; //reset timer value
 	TIMSK0 |= (1<<OCIE0A); //enable interrupt
-	OCR0A = 79; //compare value
+	OCR0A = 78; //compare value
 } // => reload time timer 0 = 100ms
 
 typedef struct{
@@ -145,8 +144,7 @@ int main(void)
 	timer1_init_ts();
 	timer0_init_ts();
 	speed_init();
-	
-	spi_init(DIV_2); // init of SPI for external ADC device
+	spi_init(DIV_4); // clk at clkio/4 = 2MHz init of SPI for external ADC device
 	
 	//uart_set_FrameFormat(USART_8BIT_DATA|USART_1STOP_BIT|USART_NO_PARITY|USART_ASYNC_MODE); // default settings
 	uart_init(BAUD_CALC(500000)); // 8n1 transmission is set as default
@@ -168,6 +166,7 @@ int main(void)
 	*/
 	
 	rgbled_init();
+	drivers_init();
 	txFrame.id = MOTOR_CAN_ID;
 	txFrame.length = 8;
 	
@@ -179,66 +178,75 @@ int main(void)
 		
 		handle_motor_status_can_msg(&send_can, &ComValues);
 		handle_can(&ComValues, &rxFrame);
-/*		
+	
 		//sends motor current and current cmd through USB
-		uart_putint((uint16_t)ComValues.f32_motor_current);
+		uart_putint((uint16_t)(ComValues.f32_motor_current*1000));
 		uart_puts(",");
-		uart_putint(ComValues.u8_throttle_cmd);
+		uart_putint(ComValues.u8_throttle_cmd*1000);
+		uart_puts(",");
+		uart_putint((uint16_t)((float)OCR3A/ICR3*1000));
 		uart_puts("\r\n");
-		*/
+		
 		//receiving throttle cmd through USB
 		if(uart_AvailableBytes()!=0){
 			volatile uint16_t u16_data_received=uart_getint(); //in Amps. if >10, braking, else accelerating. eg : 12 -> brake 2 amps; 2 -> accel 2 amps
 			uart_flush();
-			if (u16_data_received >=10)
+			if (u16_data_received >10 && u16_data_received <= 20)
 			{
 				ComValues.u8_throttle_cmd = u16_data_received-10 ;
 				ComValues.motor_status = FW_BRAKE ;
-			}else{
+			}
+			if (u16_data_received>0 && u16_data_received <= 10)
+			{
 				ComValues.u8_throttle_cmd = u16_data_received ;
 				ComValues.motor_status = FW_ACCEL;
 				u8_watchdog = WATCHDOG_RELOAD_VALUE;
 			}
-		}
-		
-		uart_putint((uint16_t)(ComValues.f32_batt_volt*100));
-		uart_puts("\r\n");	
+			if (u16_data_received == 0)
+			{
+				ComValues.u8_throttle_cmd = u16_data_received ;
+				ComValues.motor_status = IDLE;
+				u8_watchdog = 0;
+			}
+		}	
 	}
 }
 
 
-ISR(TIMER0_COMP_vect){ // every ~650µs
+ISR(TIMER0_COMP_vect){ // every 10ms
+if (u8_watchdog == 0)
+{
+	//ComValues.u8_throttle_cmd = 0 ;
+	//TODO
+	//send CAN to demand motor disengage
+	//drivers disable
+	u8_watchdog = WATCHDOG_RELOAD_VALUE;
 	
-	if (u8_watchdog == 0)
-	{
-		//ComValues.u8_throttle_cmd = 0 ;
-		/*TODO
-		* send CAN to demand motor disengage
-		* drivers disable
-		*/
 	} else {
-		u8_watchdog -- ;	
-	}
-	send_can = 1;
-
+	u8_watchdog -- ;
+}
+	
+	//send_can = 1;
+/*
 	if (ComValues.motor_status == FW_BRAKE || ComValues.motor_status == BW_ACCEL)
 	{
-		//drivers turn on
+		drivers(1); //drivers turn on
 		controller(-ComValues.u8_throttle_cmd, ComValues.f32_motor_current);
 	}
-	if (ComValues.motor_status == BW_BRAKE || ComValues.motor_status == FW_ACCEL)
+	*/
+	if (/*ComValues.motor_status == BW_BRAKE || */ComValues.motor_status == FW_ACCEL)
 	{
-		//drivers turn on
-		controller(ComValues.u8_throttle_cmd, ComValues.f32_motor_current);
+		drivers(1); //drivers turn on
+		controller(ComValues.u8_throttle_cmd, ComValues.f32_motor_current, 0);
 	}
 	if (ComValues.motor_status == IDLE)
 	{
-		controller(0.0, ComValues.f32_motor_current);
-		//drivers shutdown
+		controller(0.0, ComValues.f32_motor_current,0);
+		drivers(0);//drivers shutdown
 	}
 	
 	
-	handle_speed_sensor(&ComValues.u8_car_speed, &u16_speed_count, 100);
+	//handle_speed_sensor(&ComValues.u8_car_speed, &u16_speed_count, 100);
 }
 
 
@@ -251,7 +259,7 @@ ISR(TIMER0_COMP_vect){ // every ~650µs
 */
 
 
-ISR(TIMER1_COMPA_vect){// every 1ms nope
+ISR(TIMER1_COMPA_vect){// every ?ms
 
 	if (u8_SPI_count == 4)
 	{

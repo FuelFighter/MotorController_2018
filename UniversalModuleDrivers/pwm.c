@@ -13,19 +13,13 @@
 void pwm_init(void){
 	
 	//Set pwm_pins as output;
-	PORTE &= ~((1<<PE3)|(1<<PE4)|(1<<PE5));
-	DDRE |= (1<<PE3)|(1<<PE4)|(1<<PE5);
-	
-	PORTB &= ~(1<<PB4);
-	DDRB |= (1<<PB4);
+	PORTE &= ~((1<<PE3)|(1<<PE4));
+	DDRE |= (1<<PE3)|(1<<PE4);
 	
 	//Timer 3 fast pwm, mode 14, TOP at ICR
 	TCCR3B |= (1<<WGM33)|(1<<WGM32);
 	TCCR3A |= (1<<WGM31);
 	TCCR3A &= ~(1<<WGM30);
-	
-	//Timer 2 fast pwm, mode 3, Top at 0xFF
-	TCCR2A |= (1<<WGM21)|(1<<WGM20);
 
 	// Non inverted PWM for A
 	TCCR3A |= (1<<COM3A1);
@@ -35,9 +29,6 @@ void pwm_init(void){
 	TCCR3A |= (1<<COM3B1);
 	TCCR3A |= (1<<COM3B0);
 	
-	TCCR2A |= (1<<COM2A1);
-	TCCR2A &=  ~((1<<COM2A0));
-	
 	//Set prescale clk/1 for timer 3
 	
 	TCCR3B |= (1<<CS30);
@@ -45,12 +36,6 @@ void pwm_init(void){
 	
 	//Set top value for timer 3
 	ICR3 = 0x199; //20kHz
-	
-	//Set off 
-	OCR3A = 0;
-	OCR3B = 0;
-	OCR3C = 0;
-	OCR2A = 0;	
 	
 	OCR3A = (int)((0.5)*ICR3) ; //PWM_PE3 (non inverted)
 	OCR3B = OCR3A ; //PWM_PE4 (inverted)

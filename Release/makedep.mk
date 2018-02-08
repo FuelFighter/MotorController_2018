@@ -4,9 +4,15 @@
 
 controller.c
 
+speed.c
+
+usart.c
+
 main.c
 
 pid.c
+
+sensors.c
 
 UniversalModuleDrivers\adc.c
 
